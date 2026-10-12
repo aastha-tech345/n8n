@@ -1,0 +1,258 @@
+{
+  "name": "Clean Local RAG - Ollama",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "RAG - Upload Document",
+        "formDescription": "Upload a PDF, TXT, or CSV document to add it to the knowledge base.",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Document",
+              "fieldType": "file",
+              "acceptFileTypes": ".pdf,.txt,.csv",
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "rag-upload-001",
+      "name": "01 Upload Document",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.2,
+      "position": [
+        -900,
+        -200
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "memoryKey": {
+          "__rl": true,
+          "mode": "list",
+          "value": "simple-rag-kb",
+          "cachedResultName": "simple-rag-kb"
+        }
+      },
+      "id": "rag-store-001",
+      "name": "02 Store Documents",
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreInMemory",
+      "typeVersion": 1.2,
+      "position": [
+        -500,
+        -200
+      ]
+    },
+    {
+      "parameters": {
+        "dataType": "binary",
+        "options": {}
+      },
+      "id": "rag-loader-001",
+      "name": "03 Document Loader",
+      "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
+      "typeVersion": 1.1,
+      "position": [
+        -500,
+        40
+      ]
+    },
+    {
+      "parameters": {
+        "model": "nomic-embed-text:latest",
+        "options": {}
+      },
+      "id": "rag-embed-insert-001",
+      "name": "04 Ollama Embeddings - Insert",
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOllama",
+      "typeVersion": 1,
+      "position": [
+        -720,
+        220
+      ],
+      "credentials": {
+        "ollamaApi": {
+          "name": "Ollama"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "rag-chat-trigger-001",
+      "name": "05 Chat Trigger",
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        -200
+      ]
+    },
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "You are a local RAG assistant. Answer the user's question using the knowledge retrieved from the knowledge_base tool. If the answer is not found in the uploaded documents, clearly say that it was not found in the knowledge base. Do not invent facts."
+        }
+      },
+      "id": "rag-agent-001",
+      "name": "06 RAG AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2,
+      "position": [
+        300,
+        -200
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolName": "knowledge_base",
+        "toolDescription": "Search the uploaded documents and return the most relevant chunks for answering the user's question.",
+        "memoryKey": {
+          "__rl": true,
+          "mode": "list",
+          "value": "simple-rag-kb",
+          "cachedResultName": "simple-rag-kb"
+        },
+        "limit": 5
+      },
+      "id": "rag-kb-001",
+      "name": "07 Knowledge Base",
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreInMemory",
+      "typeVersion": 1.2,
+      "position": [
+        300,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "model": "nomic-embed-text:latest",
+        "options": {}
+      },
+      "id": "rag-embed-retrieve-001",
+      "name": "08 Ollama Embeddings - Retrieve",
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOllama",
+      "typeVersion": 1,
+      "position": [
+        560,
+        330
+      ],
+      "credentials": {
+        "ollamaApi": {
+          "name": "Ollama"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "llama3.2:1b",
+        "options": {}
+      },
+      "id": "rag-chat-model-001",
+      "name": "09 Ollama Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "typeVersion": 1,
+      "position": [
+        0,
+        180
+      ],
+      "credentials": {
+        "ollamaApi": {
+          "name": "Ollama"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "01 Upload Document": {
+      "main": [
+        [
+          {
+            "node": "02 Store Documents",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "03 Document Loader": {
+      "ai_document": [
+        [
+          {
+            "node": "02 Store Documents",
+            "type": "ai_document",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "04 Ollama Embeddings - Insert": {
+      "ai_embedding": [
+        [
+          {
+            "node": "02 Store Documents",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "05 Chat Trigger": {
+      "main": [
+        [
+          {
+            "node": "06 RAG AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "07 Knowledge Base": {
+      "ai_tool": [
+        [
+          {
+            "node": "06 RAG AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "08 Ollama Embeddings - Retrieve": {
+      "ai_embedding": [
+        [
+          {
+            "node": "07 Knowledge Base",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "09 Ollama Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "06 RAG AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}
